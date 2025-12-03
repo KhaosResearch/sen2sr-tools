@@ -1,0 +1,33 @@
+[project]
+name = "sen2sr-tools"
+version = "1.0.0"
+description = "A package based on the SEN2SR repository originally developed by the ESAOpenSR team to improve accesibility on spatial super-resolution features for Sentinel2 satellite images up to 2.5 meters of resolution."
+authors = [
+    {name = "MiguelPadillaR",email = "m.padi.r@icloud.com"}
+]
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "cubo",
+    "mlstac",
+    "rioxarray",
+    "sen2sr",
+    "torch >=2.0",
+    "geopandas",
+    "rasterio",
+    "structlog",
+    "xarray",
+    "pillow",
+    "opencv-python (>=4.11, <4.12)",
+    "numpy (>=1.9, <2.0.0)"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/KhaosResearch/sigpac-tools"
+"Bug Tracker" = "https://github.com/KhaosResearch/sigpac-tools/issues"
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
