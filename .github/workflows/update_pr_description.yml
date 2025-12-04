@@ -17,16 +17,13 @@ jobs:
         uses: actions/checkout@v4
         # We need to fetch the history up to the base branch
         with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0 
           
       - name: ⚙️ Get Commit List and Format
         id: commit_list
         run: |
-          BASE_BRANCH="origin/${{ github.event.pull_request.base.ref }}"
+          COMMIT_LIST=$(git log --pretty=format:"* %s (%an, %ad)" ${{ github.event.pull_request.base.sha }}..HEAD)
           
-          COMMIT_LIST=$(git log --pretty=format:"* %s (%an, %ad)" $BASE_BRANCH..HEAD)
-
           FORMATTED_LIST="## 📦 Commits Included in this PR:\n\n${COMMIT_LIST}"
           
           echo "FORMATTED_LIST<<EOF" >> $GITHUB_ENV
