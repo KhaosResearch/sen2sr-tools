@@ -1,2 +1,5 @@
-*venv
-model
+*venv/
+__pycache__/
+
+model/
+sen2sr_out/
