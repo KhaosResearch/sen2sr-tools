@@ -35,7 +35,11 @@ def get_sr_image(lat: float, lon: float, start_date: str, end_date: str, bands: 
         sr_image_filepath (str): Local filepath to SR image.
     """
     try:
-        # Ensure sizeis right (minimum for SEN2SR)
+        # Ensure size is right (minimum for SEN2SR)
+        if size < 128:
+            logger.warning(f"Warning: size cannot be less thatn 128px for SR process ({size}px indicated).")
+            logger.warning(f"Resetting size to 128px...")
+            size = 128
         logger.debug(f"Image size {size}x{size}px")
         # Download model
         if not os.path.exists(MODEL_DIR) or len(os.listdir(MODEL_DIR)) == 0:
@@ -153,10 +157,9 @@ def download_sentinel_cubo(lat: float, lon: float, start_date: str, end_date: st
 # --------------------
 
 
-def apply_sen2sr(size, cloudless_image_data):
+def apply_sen2sr(size, cloudless_image_data): 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    original_s2_numpy = (cloudless_image_data.compute(
-        ).to_numpy() / 10_000).astype("float32")
+    original_s2_numpy = (cloudless_image_data.astype("float32") / 10_000).compute().to_numpy()
     X = torch.from_numpy(original_s2_numpy).float().to(device)
     X = torch.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
 
@@ -173,8 +176,8 @@ def apply_sen2sr(size, cloudless_image_data):
                 overlap=32,  # The overlap between the patches
             )
     # Reorder bands ( [NIR, B, G, R] -> [R, G, B, NIR])
-    original_s2_reordered, superX_reordered = reorder_bands(
-        original_s2_numpy, superX)
+    original_s2_reordered = reorder_bands(original_s2_numpy, False)
+    superX_reordered = reorder_bands(superX, True)
 
     return original_s2_reordered,superX_reordered
 

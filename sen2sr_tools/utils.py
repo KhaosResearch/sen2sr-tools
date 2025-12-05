@@ -18,16 +18,29 @@ logger = structlog.get_logger()
 # --------------------
 
 
-def reorder_bands(original_s2_numpy, superX):
+def reorder_bands(image_data, is_sr_data):
     """
-    Reorders image bands from NIR,B,G,R to R,G,B,NIR
+    Rearrange Sentinel-2 bands from the original order [NIR, B, G, R] into standard display order [R, G, B, NIR].
+    
+    Args
+    ---
+    image_data: np.ndarray or torch.Tensor
+        Input image array
+    is_sr_data: bool
+        Set `True` if `image_data` is a torch tensor. If so, detach and convert it to a NumPy array before reordering.
+    
+    Returns
+    -------
+    np.ndarray
+        Array with reordered bands.
     """
     # Original: [NIR, B, G, R] -> reorder to [R, G, B, NIR]
-    band_order_tif = [3, 2, 1, 0]  # indices in original array
-    original_s2_reordered = original_s2_numpy[band_order_tif]
-    superX_np = superX.detach().cpu().numpy()
-    superX_reordered = superX_np[band_order_tif]
-    return original_s2_reordered, superX_reordered
+    band_order = [3, 2, 1, 0]  # [R, G, B, NIR]
+
+    if is_sr_data:
+        image_data = image_data.detach().cpu().numpy()
+
+    return image_data[band_order]
 
 
 def save_to_tif(array, filepath, sample, crs: str):
