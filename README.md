@@ -21,22 +21,23 @@ This package implements a feature to crop a polygon directly from the SR image, 
     source venv/bin/activate   # On Windows use `venv\Scripts\activate`
     pip install -e .
     ```
-## Quickstart
-The overall workflow can be run directly, since it implements a simple demo in it:
+## Quickstart example
+The overall workflow can be run directly, since it implements a simple example in it:
 ```shell
 cd sen2sr-tools
 python -m sen2sr_tools.get_sr_image
 ```
-It can also be launched as a console command:
+The example can also be run using commands:
 ```shell
 python -m sen2sr_tools get-sr-image --latitude 42.465226 --longitude -2.292699 --start-date 2025-11-01 --end-date 2025-11-15 --geojson-path ./example.geojson
 ```
 Output will be at `sen2sr_out`, where the SR and original images can be seen.
 ## Usage in Python
+All relevant methods are stored in the `get_sr_image` module.
 
 ### Get a SR image
 
-It runs the full workflow, from date and location data to super resolved image. Default `size` is the minimal requested 128 px. Default `bands` are Near-Infrared, Red, Blue, Green and the Scene Classification Layer, that contains cloud density information among others. Cropping a polygon from the image is optional, provided the GeoJSON filepath.
+Using `get_sr_image` runs the full workflow, from date and location data to super resolved image. Default `size` is the minimal requested 128px. Default `bands` are Near-Infrared, Red, Blue, Green and the Scene Classification Layer, that contains cloud density information among others. Cropping a polygon from the image is optional, provided the GeoJSON filepath. The final image outputs are in TIF and PNG formats, for usage and visualization respectively.
 
 ```python
 from sen2sr_tools.get_sr_image import get_sr_image
@@ -55,7 +56,7 @@ print(f"SR image successfully downloaded and saved at: {sr_filepath}")
 ```
 ### Download CUBO
 
-It serves the requested bands' data directly. It uses the date range to get cloudless (<=1%) images. The `crs` can be provided (i.e, "EPSG:32630"), but it can also be automatically calculated from the `lat` and `lon` arguments. If no requested data was found within the date range, it retries with by expanding it backwards in time.
+Running `download_sentinel_cubo` serves the requested bands' data directly. It uses the date range to get cloudless (<=1%) images. The `crs` can be provided (i.e, "EPSG:32630"), but it can also be automatically calculated from the `lat` and `lon` arguments. If no requested data is found within the date range, it retries with by expanding it backwards in time. The CUBO data is provided as a `Dask.array`.
 
 ```python
 from sen2sr_tools.get_sr_image import download_sentinel_cubo
@@ -71,11 +72,17 @@ end_date = "2025-11-15"
 # max_retries = 3                              # Default retries
 # retry_days_shift = 15                        # Default shift
 
-cloudless_image_data_array, sample_date = download_sentinel_cubo(lat, lon, start_date, end_date):
+cloudless_cubo_data_array, sample_date = download_sentinel_cubo(lat, lon, start_date, end_date)
+
+print(f"CUBO data summary:\n\n{cloudless_cubo_data_array.coords}")
+
+# If you need the array as NumPy
+# cubo_np_array = (cloudless_cubo_data_array.astype("float32") / 10_000).compute()
 ```
+
 ### Crop parcel from image
 
-It crops the polygon from the given TIF file and returns the cropped image as PNG.
+The `crop_png_from_tif` method crops the polygon from the given TIF file and returns the cropped image as PNG.
 
 ```python
 from sen2sr_tools.get_sr_image import crop_png_from_tif
