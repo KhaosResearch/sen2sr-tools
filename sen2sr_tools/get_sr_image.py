@@ -15,8 +15,8 @@ from datetime import datetime, timedelta
 from rasterio.mask import mask
 from xarray import DataArray
 
-from constants import *
-from utils import lonlat_to_utm_epsg, save_to_png, save_to_tif, get_cloudless_time_indices, make_pixel_faithful_comparison, reorder_bands
+from .constants import *
+from .utils import lonlat_to_utm_epsg, save_to_png, save_to_tif, get_cloudless_time_indices, make_pixel_faithful_comparison, reorder_bands
 
 logger = structlog.get_logger()
 
@@ -45,16 +45,16 @@ def get_sr_image(lat: float, lon: float, start_date: str, end_date: str, bands: 
 
         # Prepare data
         crs = lonlat_to_utm_epsg(lon, lat)
-        cloudless_image_data, sample_date = download_sentinel_cubo(
+        cubo_image_data, sample_date = download_sentinel_cubo(
             lat, lon, start_date, end_date, crs, bands, size)
         
-        original_s2_reordered, superX_reordered = apply_sen2sr(size, cloudless_image_data)
+        original_s2_reordered, superX_reordered = apply_sen2sr(size, cubo_image_data)
 
         # Save original and super-res images in TIF & PNG
         save_to_tif(original_s2_reordered, OG_TIF_FILEPATH,
-                    cloudless_image_data, crs)
+                    cubo_image_data, crs)
         save_to_tif(superX_reordered, SR_TIF_FILEPATH,
-                    cloudless_image_data, crs)
+                    cubo_image_data, crs)
 
         save_to_png(original_s2_reordered, OG_PNG_FILEPATH, lat)
         save_to_png(superX_reordered, SR_PNG_FILEPATH, lat)
@@ -172,11 +172,11 @@ def apply_sen2sr(size: int, cubo_sample: DataArray):
     """
     # Get CUBO sample bands
     bands = list(cubo_sample.band)
+    is_rgbn_upscale = all(b in BANDS for b in bands)
     # Select model type
-    if  all(b in BANDS for b in bands):  # True color upscale
+    if  is_rgbn_upscale:  # True color upscale
         file="https://huggingface.co/tacofoundation/sen2sr/resolve/main/SEN2SRLite/NonReference_RGBN_x4/mlm.json"
         model_dir = RGBN_MODEL_DIR
-    
     elif len(bands) >= 10:  # Everything else
         file="https://huggingface.co/tacofoundation/sen2sr/resolve/main/SEN2SRLite/main/mlm.json"
         model_dir = MAIN_MODEL_DIR
@@ -209,11 +209,12 @@ def apply_sen2sr(size: int, cubo_sample: DataArray):
                 X=X,  # The input tensor
                 overlap=32,  # The overlap between the patches
             )
-    # Reorder bands ( [NIR, B, G, R] -> [R, G, B, NIR])
-    original_s2_reordered = reorder_bands(original_s2_numpy, False)
-    superX_reordered = reorder_bands(superX, True)
+    if  is_rgbn_upscale:  # True color upscale
+        # Reorder bands ( [NIR, B, G, R] -> [R, G, B, NIR])
+        original_s2_numpy = reorder_bands(original_s2_numpy, False)
+        superX = reorder_bands(superX, True)
 
-    return original_s2_reordered,superX_reordered
+    return original_s2_numpy, superX
 
 
 # --------------------

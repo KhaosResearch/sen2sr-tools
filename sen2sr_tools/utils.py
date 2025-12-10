@@ -10,7 +10,7 @@ from rasterio.transform import from_bounds
 from xarray import DataArray
 from PIL import Image, ImageEnhance
 
-from constants import BRIGHTNESS_FACTOR, COMPARISON_PNG_FILEPATH, GAMMA, PNG_DIR, TIF_DIR
+from .constants import BRIGHTNESS_FACTOR, COMPARISON_PNG_FILEPATH, GAMMA, PNG_DIR, TIF_DIR
 
 logger = structlog.get_logger()
 # --------------------
