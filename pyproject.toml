@@ -8,6 +8,16 @@ authors = [
 license = "MIT"
 readme = "README.md"
 requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Development Status :: 1 - Planning",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: SR",
+    "Topic :: Utilities"
+]
 dependencies = [
     "cubo",
     "mlstac",
@@ -19,14 +29,17 @@ dependencies = [
     "structlog",
     "xarray",
     "pillow",
+    "matplotlib",
     "opencv-python (>=4.11, <4.12)",
     "numpy (>=1.9, <2.0.0)"
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/KhaosResearch/sigpac-tools"
-"Bug Tracker" = "https://github.com/KhaosResearch/sigpac-tools/issues"
+"Homepage" = "https://github.com/MiguelPadillaR/sen2sr-tools"
+"Bug Tracker" = "https://github.com/MiguelPadillaR/sen2sr-tools/issues"
 
+[project.optional-dependencies]
+dev = ["autopep8", "pytest"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

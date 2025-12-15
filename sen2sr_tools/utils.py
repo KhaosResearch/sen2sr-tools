@@ -6,9 +6,12 @@ import structlog
 
 import numpy as np
 
+from shapely.geometry import shape, mapping
+from shapely.ops import transform
+from PIL import Image, ImageEnhance
+from pyproj import Transformer
 from rasterio.transform import from_bounds
 from xarray import DataArray
-from PIL import Image, ImageEnhance
 
 from .constants import BRIGHTNESS_FACTOR, COMPARISON_PNG_FILEPATH, GAMMA, PNG_DIR, TIF_DIR
 
@@ -18,16 +21,29 @@ logger = structlog.get_logger()
 # --------------------
 
 
-def reorder_bands(original_s2_numpy, superX):
+def reorder_bands(image_data, is_sr_data):
     """
-    Reorders image bands from NIR,B,G,R to R,G,B,NIR
+    Rearrange Sentinel-2 bands from the original order [NIR, B, G, R] into standard display order [R, G, B, NIR].
+    
+    Args
+    ---
+    image_data: np.ndarray or torch.Tensor
+        Input image array
+    is_sr_data: bool
+        Set `True` if `image_data` is a torch tensor. If so, detach and convert it to a NumPy array before reordering.
+    
+    Returns
+    -------
+    np.ndarray
+        Array with reordered bands.
     """
     # Original: [NIR, B, G, R] -> reorder to [R, G, B, NIR]
-    band_order_tif = [3, 2, 1, 0]  # indices in original array
-    original_s2_reordered = original_s2_numpy[band_order_tif]
-    superX_np = superX.detach().cpu().numpy()
-    superX_reordered = superX_np[band_order_tif]
-    return original_s2_reordered, superX_reordered
+    band_order = [3, 2, 1, 0]  # [R, G, B, NIR]
+
+    if is_sr_data:
+        image_data = image_data.detach().cpu().numpy()
+
+    return image_data[band_order]
 
 
 def save_to_tif(array, filepath, sample, crs: str):
@@ -272,3 +288,9 @@ def lonlat_to_utm_epsg(lon, lat):
         return f"EPSG:{32600 + zone}"  # Northern hemisphere
     else:
         return f"EPSG:{32700 + zone}"  # Southern hemisphere
+
+def reproject_geometry(geometry_dict, from_crs, to_crs):
+    geom = shape(geometry_dict)
+    transformer = Transformer.from_crs(from_crs, to_crs, always_xy=True)
+    geom_reproj = transform(lambda x, y: transformer.transform(x, y), geom)
+    return mapping(geom_reproj)
