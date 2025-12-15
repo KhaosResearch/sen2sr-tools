@@ -48,7 +48,7 @@ start_date = "2025-11-01"
 end_date = "2025-11-15"
 # bands = ["B08", "B02", "B03", "B04", "SCL"]       # Default bands
 # size = 128                                        # Default size
-# geojson_path = None                               # Default value
+# geometry = None                                   # Default value
 
 sr_filepath = get_sr_image(lat, lng, bands, start_date, end_date)
 
@@ -82,18 +82,28 @@ print(f"CUBO data summary:\n\n{cloudless_cubo_data_array.coords}")
 
 ### Crop parcel from image
 
-The `crop_png_from_tif` method crops the polygon from the given TIF file and returns the cropped image as PNG.
+The `crop_parcel_from_tif` method crops the polygon from the given TIF file and returns the cropped image output and metadata.
 
 ```python
-from sen2sr_tools.get_sr_image import crop_png_from_tif
+import json
+import geopandas as gpd
+from sen2sr_tools.get_sr_image import crop_parcel_from_tif
+
+gdf = gpd.read_file(geometry)
 
 raster_path = "path/to/file.tif"
-geojson_path = "path/to/polygon.geojson"
-date = "2025-11-1"
+geometry = {
+    "type": "Polygon",
+    "coordinates": [[
+        [-2.29544172799985, 42.46242962302221],[-2.292531924994703, 42.46538599420777],
+        [-2.292180580738519, 42.463584097818824], [-2.286733836169323, 42.464620125420105],
+        [-2.29544172799985, 42.46242962302221]
+    ]], 
+    "CRS": "epsg:4258"}
 
-out_png_path = crop_png_from_tif(raster_path, geojson_path, date)
+out_image, out_meta = crop_parcel_from_tif(raster_path, geojson_path)
 
-print(f"Polygon successfully cropped and saved at: {out_png_path}")
+print(f"Polygon successfully cropped!")
 ```
 
 ## Attribution and License
