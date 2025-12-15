@@ -48,7 +48,7 @@ start_date = "2025-11-01"
 end_date = "2025-11-15"
 # bands = ["B08", "B02", "B03", "B04", "SCL"]       # Default bands
 # size = 128                                        # Default size
-# geojson_path = None                               # Default value
+# geometry = None                                   # Default value
 
 sr_filepath = get_sr_image(lat, lng, bands, start_date, end_date)
 

@@ -284,11 +284,13 @@ if __name__ == "__main__":
     now = datetime.today().strftime("%Y-%m-%d")
     look_from = (datetime.today() - timedelta(days=delta)).strftime("%Y-%m-%d")
 
+    start_time = time.time()
+
     # geojson_path = CURR_SCRIPT_DIR.parent / "example.geojson"
     # with open(geojson_path, "r") as f:
     #     geom = json.load(f)
-
-    start_time = time.time()
+    # get_sr_image(lat, lon, look_from, now, geometry=geom)
+    
     get_sr_image(lat, lon, look_from, now)
     finish_time = time.time()
     logger.info(f"Total time:\t{(finish_time - start_time)/60:.1f} minutes")
