@@ -67,8 +67,10 @@ start_date = "2025-11-01"
 end_date = "2025-11-15"
 # crs = None                                   # Default CRS
 # bands = ["B08", "B02", "B03", "B04", "SCL"]  # Default bands
-# size = 128                                   # Default size
-# cloud_threshold= 0.01                        # Default threshold density
+# size = 128                                   # Default px size
+# resolution = 10                              # Default m/px resolution
+# get_cloudless_data = True                    # Default flag value
+# cloud_threshold = 0.01                       # Default threshold density
 # max_retries = 3                              # Default retries
 # retry_days_shift = 15                        # Default shift
 
