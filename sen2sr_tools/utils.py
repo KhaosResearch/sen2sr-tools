@@ -5,6 +5,7 @@ import rasterio
 import structlog
 
 import numpy as np
+import xarray as xr
 
 from rasterio.transform import from_bounds
 from xarray import DataArray
@@ -163,8 +164,28 @@ def brighten(img, factor=BRIGHTNESS_FACTOR):
 def apply_gamma(img, gamma=GAMMA):
     return np.clip(img ** (1 / gamma), 0, 1)
 
+def get_cloudless_cubo_data(cube_data, crs, bands, cloud_threshold):
+    # Find cloudless time index for RBG upscale
+    if "SCL" in bands and len(bands) == 5:
+        scl = cube_data.sel(band="SCL")
+        cloudless_date_list = get_cloudless_time_indices(
+            scl, cloud_threshold)
+        cloudless_image_data = cube_data.isel(time=cloudless_date_list).sel(
+            band=bands[:-1])  # drop SCL band
 
-def get_cloudless_time_indices(scl: DataArray, cloud_threshold=0.01):
+        # Calculate CRS and reproject all cloudless samples
+        crs = crs or lonlat_to_utm_epsg(lat, lon)
+        cloudless_cube_data = [
+            sample
+            .rio.write_crs(crs, inplace=False)
+            .rio.reproject(crs)
+            for sample in cloudless_image_data
+        ]
+        cube = xr.concat(cloudless_cube_data, dim='time')
+
+    return cube
+
+def get_cloudless_time_indices(cubo_scl_data: DataArray, cloud_threshold=0.01):
     """
     Uses the SCL band and combs over the image data within date range to find the least cloudy.
     Arguments:
@@ -177,8 +198,8 @@ def get_cloudless_time_indices(scl: DataArray, cloud_threshold=0.01):
         valid_indices = []
         min_threshold = 1  # 100%
         min_index = -1
-        for t in range(scl.shape[0]):  # iterate over time dimension
-            scl_slice = scl.isel(time=t).compute().to_numpy()
+        for t in range(cubo_scl_data.shape[0]):  # iterate over time dimension
+            scl_slice = cubo_scl_data.isel(time=t).compute().to_numpy()
             # Get cloud image coverage
             total_pixels = scl_slice.size
             cloud_pixels = np.isin(scl_slice, [7, 8, 9, 10]).sum()
