@@ -7,9 +7,12 @@ import structlog
 import numpy as np
 import xarray as xr
 
+from shapely.geometry import shape, mapping
+from shapely.ops import transform
+from PIL import Image, ImageEnhance
+from pyproj import Transformer
 from rasterio.transform import from_bounds
 from xarray import DataArray
-from PIL import Image, ImageEnhance
 
 from .constants import BRIGHTNESS_FACTOR, COMPARISON_PNG_FILEPATH, GAMMA, PNG_DIR, TIF_DIR
 
@@ -306,3 +309,9 @@ def lonlat_to_utm_epsg(lon, lat):
         return f"EPSG:{32600 + zone}"  # Northern hemisphere
     else:
         return f"EPSG:{32700 + zone}"  # Southern hemisphere
+
+def reproject_geometry(geometry_dict, from_crs, to_crs):
+    geom = shape(geometry_dict)
+    transformer = Transformer.from_crs(from_crs, to_crs, always_xy=True)
+    geom_reproj = transform(lambda x, y: transformer.transform(x, y), geom)
+    return mapping(geom_reproj)

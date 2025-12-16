@@ -31,7 +31,7 @@ def run_command(command_name: str, args: argparse.Namespace):
         logger.info("Starting Super Resolution task", 
                     latitude=args.latitude, longitude=args.longitude, 
                     start_date=args.start_date, end_date=args.end_date,
-                    geojson_path=args.geojson_path
+                    geometry=args.geometry
         )
         result = get_sr_image(
             lat=args.latitude, 
@@ -40,7 +40,7 @@ def run_command(command_name: str, args: argparse.Namespace):
             start_date=args.start_date, 
             end_date=args.end_date, 
             size=args.size,
-            geojson_path=args.geojson_path
+            geometry=args.geometry
         )
         logger.info(f"✅ Get SR Image task completed. Result (filepath):\n{result}")
         return result
@@ -72,7 +72,7 @@ def run_command(command_name: str, args: argparse.Namespace):
              
         out_path = crop_png_from_tif(
             raster_path=args.raster_path, 
-            geojson_path=args.geojson_path, 
+            geometry=args.geometry, 
             date=args.acquisition_date
         )
         logger.info(f"✅ Cropping successful. Output path: {out_path}")

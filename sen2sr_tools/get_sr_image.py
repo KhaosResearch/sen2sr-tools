@@ -21,7 +21,7 @@ from .utils import lonlat_to_utm_epsg, save_to_png, save_to_tif, get_cloudless_c
 logger = structlog.get_logger()
 
 
-def get_sr_image(lat: float, lon: float, start_date: str, end_date: str, bands: list=["B08", "B02", "B03", "B04", "SCL"], size: int=128, geojson_path: str=None):
+def get_sr_image(lat: float, lon: float, start_date: str, end_date: str, bands: list=["B08", "B02", "B03", "B04", "SCL"], size: int=128, geometry: dict=None):
     """
     Get SR image from downloaded Sentinel's imagery data and load up SEN2SR model from HuggingFace to Super-Resolve it
     Arguments:
@@ -31,7 +31,7 @@ def get_sr_image(lat: float, lon: float, start_date: str, end_date: str, bands: 
         end_date (str): Final date in search range. ISO format (`yyyy-mm-dd`).
         bands (list): List of bands Defaults are NIR + RGB + Clouds (`B02`, `B03`, `B04`, `B08` and `SCL`)
         size (int): Image size in px. Default is `128` and must be a multiple of 32.
-        geojson_path (str): GeoJSON to crop SR image filepath. If `None`, it downloads the full image in `size`x`size` px.
+        geometry (dict): GeoJSON to crop SR image from. If `None`, it downloads the full image in `size`x`size` px.
     Returns:
         sr_image_filepath (str): Local filepath to SR image.
     """
@@ -58,16 +58,32 @@ def get_sr_image(lat: float, lon: float, start_date: str, end_date: str, bands: 
         save_to_tif(superX_reordered, SR_TIF_FILEPATH,
                     cubo_image_data, crs)
 
-        save_to_png(original_s2_reordered, OG_PNG_FILEPATH, lat)
-        save_to_png(superX_reordered, SR_PNG_FILEPATH, lat)
+        save_to_png(original_s2_reordered, OG_PNG_FILEPATH)
+        save_to_png(superX_reordered, SR_PNG_FILEPATH)
 
         # Make comparison grid
         make_pixel_faithful_comparison(original_s2_reordered, superX_reordered)
 
         # Get and save cropped sr parcel image
-        if geojson_path:
-            sr_image_filepath = str(
-                crop_png_from_tif(SR_TIF_FILEPATH, geojson_path, sample_date))
+        if geometry:
+            out_image, out_meta = crop_parcel_from_tif(SR_TIF_FILEPATH, geometry)
+
+            # Save cropped SR cropped TIF & PNG
+            year, month, day = sample_date.split("-")
+            filename = f"SR_{year}-{month}-{day}"
+
+            out_tif_path = TIF_DIR / f"{filename}.tif"
+            with rasterio.open(out_tif_path, "w", **out_meta) as dest:
+                dest.write(out_image)
+
+            out_png_path = SEN2SR_SR_DIR / f"{filename}.png"
+            save_to_png(out_image, out_png_path, apply_gamma_correction=True)
+
+            logger.info(
+                f"✅ Clipped raster saved to {out_tif_path} and PNG saved to {out_png_path}")
+
+            sr_image_filepath = out_png_path
+
         else:
             sr_image_filepath = SR_PNG_FILEPATH
         return sr_image_filepath
@@ -214,30 +230,30 @@ def apply_sen2sr(size: int, cubo_sample: DataArray):
 # --------------------
 
 
-def crop_png_from_tif(raster_path: str, geojson_path: str, date: str):
+def crop_parcel_from_tif(raster_path: str, geometry: dict):
     """
     Crops the parcel from the SR image, using the stored parcel's geometry and`rasterio`
     Arguments:
         raster_path (str): Path to uncropped SR image.
-        geojson_filepath (str): Path to uncropped SR image.
-        date (str): Image date. For naming the file.
+        geometry (dict): Parcel geometry to crop with.
     Returns:
-        out_png_path (str): Path to cropped SR parcel image
+        Tuple: Cropped image output and metadata info
     """
     with rasterio.open(raster_path) as src:
-
+        # Reproject geometry
+        geometry_clean = {
+            "type": geometry["type"],
+            "coordinates": geometry["coordinates"]
+        }
         raster_crs = src.crs
-        gdf = gpd.read_file(geojson_path)
-        if raster_crs:
-            gdf = gdf.to_crs(raster_crs)
-            gdf["geometry"] = gdf["geometry"].buffer(1)
-            logger.info(
-                f"Reprojected polygon to match raster CRS: {raster_crs}")
+        from_crs = geometry.get("CRS", "epsg:4326").upper()
+
+        geom_reproj = reproject_geometry(geometry_clean, from_crs, raster_crs)
+        logger.info(f"Reprojected polygon to match raster CRS: {raster_crs}")
 
         # Get parcel's geom and apply mask on SR image
         logger.info(f"Cropping parcel's geometry from raster...")
-        geom = [json.loads(gdf.to_json())["features"][0]["geometry"]]
-        out_image, out_transform = mask(src, geom, crop=True)
+        out_image, out_transform = mask(src, [geom_reproj ], crop=True)
         out_meta = src.meta.copy()
         logger.info(f"Cropping successful!")
 
@@ -249,21 +265,8 @@ def crop_png_from_tif(raster_path: str, geojson_path: str, date: str):
         "transform": out_transform
     })
 
-    # Save cropped TIF & PNG
-    year, month, day = date.split("-")
-    filename = f"SR_{year}-{month}-{day}"
+    return out_image, out_meta
 
-    out_tif_path = TIF_DIR / f"{filename}.tif"
-    with rasterio.open(out_tif_path, "w", **out_meta) as dest:
-        dest.write(out_image)
-
-    out_png_path = SEN2SR_SR_DIR / f"{filename}.png"
-    save_to_png(out_image, out_png_path, apply_gamma_correction=True)
-
-    logger.info(
-        f"✅ Clipped raster saved to {out_tif_path} and PNG saved to {out_png_path}")
-
-    return out_png_path
 
 
 if __name__ == "__main__":
@@ -274,6 +277,12 @@ if __name__ == "__main__":
     look_from = (datetime.today() - timedelta(days=delta)).strftime("%Y-%m-%d")
 
     start_time = time.time()
+
+    # geojson_path = CURR_SCRIPT_DIR.parent / "example.geojson"
+    # with open(geojson_path, "r") as f:
+    #     geom = json.load(f)
+    # get_sr_image(lat, lon, look_from, now, geometry=geom)
+    
     get_sr_image(lat, lon, look_from, now)
     finish_time = time.time()
     logger.info(f"Total time:\t{(finish_time - start_time)/60:.1f} minutes")
