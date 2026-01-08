@@ -1,14 +1,21 @@
-import pathlib as Path
 import os
+from pathlib import Path
 
 RESOLUTION = 10
 
-CURR_SCRIPT_DIR = Path.Path(os.path.dirname(os.path.abspath(__file__)))
+CURR_SCRIPT_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
 
 MODEL_DIR = CURR_SCRIPT_DIR / "model"
 RGBN_MODEL_DIR = str(MODEL_DIR / "SEN2SRLite_RGBN")
 MAIN_MODEL_DIR = str(MODEL_DIR / "SEN2SRLite")
-SEN2SR_SR_DIR = CURR_SCRIPT_DIR / "sen2sr_out"
+
+SEN2SR_SR_DIR = Path(
+    os.environ.get(
+        "SEN2SR_OUTPUT_DIR",
+        CURR_SCRIPT_DIR / "sen2sr_out"
+    )
+)
+
 PNG_DIR = SEN2SR_SR_DIR / "png"
 TIF_DIR = SEN2SR_SR_DIR / "tif"
 

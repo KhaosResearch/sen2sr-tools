@@ -12,16 +12,17 @@ import numpy as np
 import structlog
 
 from datetime import datetime, timedelta
+from pathlib import Path
 from rasterio.mask import mask
 from xarray import DataArray
 
 from .constants import *
-from .utils import lonlat_to_utm_epsg, save_to_png, save_to_tif, get_cloudless_cubo_data, make_pixel_faithful_comparison, reorder_bands
+from .utils import lonlat_to_utm_epsg, reproject_geometry, save_to_png, save_to_tif, get_cloudless_cubo_data, make_pixel_faithful_comparison, reorder_bands
 
 logger = structlog.get_logger()
 
 
-def get_sr_image(lat: float, lon: float, start_date: str, end_date: str, bands: list=["B08", "B02", "B03", "B04", "SCL"], size: int=128, geometry: dict=None):
+def get_sr_image(lat: float, lon: float, start_date: str, end_date: str, bands: list=["B08", "B02", "B03", "B04", "SCL"], size: int=128, geometry: dict=None, output_dir: str | Path = SEN2SR_SR_DIR):
     """
     Get SR image from downloaded Sentinel's imagery data and load up SEN2SR model from HuggingFace to Super-Resolve it
     Arguments:
@@ -76,7 +77,7 @@ def get_sr_image(lat: float, lon: float, start_date: str, end_date: str, bands: 
             with rasterio.open(out_tif_path, "w", **out_meta) as dest:
                 dest.write(out_image)
 
-            out_png_path = SEN2SR_SR_DIR / f"{filename}.png"
+            out_png_path = SEN2SR_SR_DIR.parent / f"{filename}.png"
             save_to_png(out_image, out_png_path, apply_gamma_correction=True)
 
             logger.info(
