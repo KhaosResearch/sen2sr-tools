@@ -37,7 +37,7 @@ All relevant methods are stored in the `get_sr_image` module.
 
 ### Get a SR image
 
-Using `get_sr_image` runs the full workflow, from date and location data to super resolved image. Default `size` is the minimal requested 128px. Default `bands` are Near-Infrared, Red, Blue, Green and the Scene Classification Layer, that contains cloud density information among others. Cropping a polygon from the image is optional, provided the GeoJSON filepath. The final image outputs are in TIF and PNG formats, for usage and visualization respectively.
+Using `get_sr_image` runs the full workflow, from date and location data to super resolved image. Default `size` is the minimal requested 128px. Default `bands` are Near-Infrared, Red, Blue, Green and the Scene Classification Layer, that contains cloud density information. Cropping a polygon from the image is optional, provided the geometry data. The final image outputs are in TIF and PNG formats, for usage and visualization respectively.
 
 ```python
 from sen2sr_tools.get_sr_image import get_sr_image
@@ -56,7 +56,7 @@ print(f"SR image successfully downloaded and saved at: {sr_filepath}")
 ```
 ### Download CUBO
 
-Running `download_sentinel_cubo` serves the requested bands' data directly. It uses the date range to get cloudless (<=1%) images. The `crs` can be provided (i.e, "EPSG:32630"), but it can also be automatically calculated from the `lat` and `lon` arguments. If no requested data is found within the date range, it retries with by expanding it backwards in time. The CUBO data is provided as a `Dask.array`.
+Running `download_sentinel_cubo` serves the requested bands' data directly. It uses the date range to get cloudless (<=1%) images. The `crs` can be provided (i.e, "EPSG:32630"), but it can also be automatically calculated from the `lat` and `lon` arguments. If no requested data is found within the date range, it retries with by expanding the date range backwards in time. The CUBO data is provided as a `Dask.array`.
 
 ```python
 from sen2sr_tools.get_sr_image import download_sentinel_cubo
