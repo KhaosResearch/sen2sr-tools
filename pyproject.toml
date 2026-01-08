@@ -29,6 +29,7 @@ dependencies = [
     "structlog",
     "xarray",
     "pillow",
+    "pytest",
     "matplotlib",
     "opencv-python (>=4.11, <4.12)",
     "numpy (>=1.9, <2.0.0)"
