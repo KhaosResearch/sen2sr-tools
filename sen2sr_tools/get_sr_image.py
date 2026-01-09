@@ -12,16 +12,17 @@ import numpy as np
 import structlog
 
 from datetime import datetime, timedelta
+from pathlib import Path
 from rasterio.mask import mask
 from xarray import DataArray
 
 from .constants import *
-from .utils import lonlat_to_utm_epsg, reproject_geometry, save_to_png, save_to_tif, get_cloudless_time_indices, make_pixel_faithful_comparison, reorder_bands
+from .utils import lonlat_to_utm_epsg, reproject_geometry, save_to_png, save_to_tif, get_cloudless_cubo_data, make_pixel_faithful_comparison, reorder_bands
 
 logger = structlog.get_logger()
 
 
-def get_sr_image(lat: float, lon: float, start_date: str, end_date: str, bands: list=["B08", "B02", "B03", "B04", "SCL"], size: int=128, geometry: dict=None):
+def get_sr_image(lat: float, lon: float, start_date: str, end_date: str, bands: list=["B08", "B02", "B03", "B04", "SCL"], size: int=128, geometry: dict=None, output_dir: str | Path = SEN2SR_SR_DIR):
     """
     Get SR image from downloaded Sentinel's imagery data and load up SEN2SR model from HuggingFace to Super-Resolve it
     Arguments:
@@ -47,7 +48,9 @@ def get_sr_image(lat: float, lon: float, start_date: str, end_date: str, bands: 
         crs = lonlat_to_utm_epsg(lon, lat)
         cubo_image_data, sample_date = download_sentinel_cubo(
             lat, lon, start_date, end_date, crs, bands, size)
-        
+        # Get latest sample
+        cubo_image_data = cubo_image_data.isel(time=-1)
+
         original_s2_reordered, superX_reordered = apply_sen2sr(size, cubo_image_data)
 
         # Save original and super-res images in TIF & PNG
@@ -74,7 +77,7 @@ def get_sr_image(lat: float, lon: float, start_date: str, end_date: str, bands: 
             with rasterio.open(out_tif_path, "w", **out_meta) as dest:
                 dest.write(out_image)
 
-            out_png_path = SEN2SR_SR_DIR / f"{filename}.png"
+            out_png_path = SEN2SR_SR_DIR.parent / f"{filename}.png"
             save_to_png(out_image, out_png_path, apply_gamma_correction=True)
 
             logger.info(
@@ -95,7 +98,7 @@ def get_sr_image(lat: float, lon: float, start_date: str, end_date: str, bands: 
 # --------------------
 
 
-def download_sentinel_cubo(lat: float, lon: float, start_date: str, end_date: str, crs: str=None, bands: list=["B08", "B02", "B03", "B04", "SCL"], size: int=128, resolution: int = RESOLUTION, cloud_threshold: float = 0.01, max_retries: int = 3, retry_days_shift: int = 15):
+def download_sentinel_cubo(lat: float, lon: float, start_date: str, end_date: str, crs: str=None, bands: list=["B08", "B02", "B03", "B04", "SCL"], size: int=128, resolution: int = RESOLUTION, get_cloudless_data: bool = True, cloud_threshold: float = 0.01, max_retries: int = 3, retry_days_shift: int = 15):
     """
     Download Sentinel's imagery data cubo and uses SCL band to filter the least cloudy data within date range.
     Arguments:
@@ -105,8 +108,9 @@ def download_sentinel_cubo(lat: float, lon: float, start_date: str, end_date: st
         end_date (str): Final date in search range
         crs (str): Coordinate Reference System for the image. If `None` it is calculated from `land` and `lon`.
         bands (list): List of bands Defaults are NIR + RGB + Clouds (`B02`, `B03`, `B04`, `B08` and `SCL`).
-        resolution (int): Resolution in m/px. Default is `10`.
         size (int): Image size in px. Default is `128` and must be at least `32`.
+        resolution (int): Resolution in m/px. Default is `10`.
+        get_cloudless_data (bool): If `True`, it will try to get the cloudless image within date range using SCL band. Default is `True`.
         cloud_threshold (float) : Max percentage of cloud density tolerated (0.0 to 1.0). Default is `0.01`.
         max_retries (int): Max number of retries if requested image is not found within date range. Shifts `retry_days_shift` back from `start_date` for new date range. Default is `3`.
         retry_days_shift (int): Number of days to shift back from `start_date`. Default is `15`.
@@ -128,22 +132,11 @@ def download_sentinel_cubo(lat: float, lon: float, start_date: str, end_date: st
                 edge_size=size,
                 resolution=resolution,
             )
-
-            # Find cloudless time index for RBG upscale
-            if "SCL" in bands and len(bands) == 5:
-                scl = cube_data.sel(band="SCL")
-                cloudless_date = get_cloudless_time_indices(
-                    scl, cloud_threshold)[-1]
-                cloudless_image_data = cube_data.isel(time=cloudless_date).sel(
-                    band=bands[:-1])  # drop SCL band
-
-                # Get acquisition date and reproject
-                crs = lonlat_to_utm_epsg(lat,lon) if crs is None else crs  # Calculate CRS if not provided
-                cloudless_image_data = cloudless_image_data.rio.write_crs(crs).rio.reproject(crs)
-                cube_data = cloudless_image_data
+            if get_cloudless_data:
+                cube_data = get_cloudless_cubo_data(cube_data, crs, bands, cloud_threshold)
                 msg = "☁️  Cloudless image found on "
             else:
-                cube_data = cube_data[-1]
+                cube_data = cube_data
                 msg = "Image data found on "
 
             acq_date = cube_data["time"].values
