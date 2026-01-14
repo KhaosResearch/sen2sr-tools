@@ -242,6 +242,7 @@ def crop_parcel_from_tif(raster_path: str, geometry: dict):
     """
     with rasterio.open(raster_path) as src:
         # Reproject geometry
+        assert geometry["type"] in ("Polygon", "MultiPolygon")
         geometry_clean = {
             "type": geometry["type"],
             "coordinates": geometry["coordinates"]
